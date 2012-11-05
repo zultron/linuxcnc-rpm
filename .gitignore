@@ -1,0 +1,9 @@
+# sources
+/linuxcnc-2.6.0.pre0.*.tar.bz2
+
+# fedpkg local artifacts
+/linuxcnc-2.6.0.pre0
+/.build-*.log
+
+#emacs droppings
+/*~
