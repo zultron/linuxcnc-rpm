@@ -7,27 +7,36 @@
 
 %global _gitrel    20121103git1fce7fb
 
-# unfortunately, this must be defined somehow
-# probably need to look at the kmod stuff and see how they do it
-%global _xenomai_kernel_version 2.6.38.8-xenomai.4
-
 %if 0%{?_with_rtai}
-%global configopts --with-threads=rtai
+%global rt_opts --with-threads=rtai
 %endif
 %if 0%{?_with_rt_preempt 0}
-%global configopts --with-threads=rt-preempt-user
+%global rt_opts --with-threads=rt-preempt-user
 %endif
 %if 0%{?_with_xenomai_kernel 0}
-%global configopts --with-threads=xenomai-kernel
+%global xenomai_type xenomai-kernel
 %global _with_xenomai 1
 %endif
 %if 0%{?_with_xenomai_user 0}
-%global configopts --with-threads=xenomai-user
+%global xenomai_type xenomai-user
 %global _with_xenomai 1
 %endif
 %if 0%{?_with_simulator 0}
-%global configopts --enable-simulator
+%global rt_opts --enable-simulator
 %endif
+
+%if 0%{?_with_xenomai}
+# If kversion isn't defined on the rpmbuild line, find the
+# version of the newest instelled xenomai kernel
+%if 0%{!?xenomai_kversion}
+%global xenomai_kversion $(rpm -q --qf='%{version}-%{release}.%{arch}' kernel | tail -1 || true)
+%endif # !?xenomai_kversion
+%define xenomai_kernel /boot/config-%{xenomai_kversion}
+%define xenomai_kernel_headers %{_usrsrc}/kernels/%{xenomai_kversion}
+%global rt_opts %{xenomai_type} \
+	--with-kernel=%{xenomai_kernel} \
+	--with-kernel-headers=%{xenomai_kernel_headers}
+%endif # ?_with_xenomai
 
 
 Name:		linuxcnc
@@ -38,6 +47,7 @@ Summary:	a software system for computer control of machine tools
 License:	GPL/LGPL
 Group:		Applications/Engineering
 URL:		http://www.linuxcnc.org
+# git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
 Source0:	%{name}-%{version}.%{_gitrel}.tar.bz2
 
 BuildRequires:  gtk2-devel libgnomeprintui22-devel
@@ -46,16 +56,20 @@ BuildRequires:	tcl-devel tk-devel bwidget libXaw-devel python-mtTkinter
 BuildRequires:  lyx pth-devel dblatex libmodbus kernel-devel blt-devel
 # temp. disable
 #BuildRequires:  asciidoc >= 8.5
-%if 0%{?_with_xenomai}
-BuildRequires:  kernel-xenomai == %{_xenomai_kernel_version}
-%endif
 #
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
 Requires:	bwidget blt
 Requires:	kernel-rt
+
+# xenomai 
 %if 0%{?_with_xenomai}
-Requires:  kernel-xenomai == %{_xenomai_kernel_version}
+BuildRequires:  kernel-xenomai == %{xenomai_kversion}
+BuildRequires:  kernel-xenomai-devel
+BuildRequires:  xenomai-devel
+
+Requires:  kernel-xenomai == %{xenomai_kversion}
+Requires:  xenomai
 %endif
 
 %description
@@ -88,10 +102,7 @@ Documentation files for LinuxCNC
 %build
 cd src
 ./autogen.sh
-# specify --with-threads= one of
-# xenomai-user, rt-preempt-user, rtai, xenomai-kernel, or
-# alternatively --enable-simulator
-%configure  %{configopts} \
+%configure  %{rt_opts} \
 	    --with-tkConfig=%{_libdir}/tkConfig.sh \
 	    --with-tclConfig=%{_libdir}/tclConfig.sh \
 	    --enable-build-documentation
@@ -112,6 +123,9 @@ mv $RPM_BUILD_ROOT/usr/share/doc/linuxcnc \
 # put X11 app-defaults where the rest of them live
 mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
 
+# Set the module(s) to be executable, so that they will be stripped
+# when packaged.
+find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 %files
 %defattr(-,root,root)
@@ -159,7 +173,9 @@ mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
 
 %changelog
 * Mon Nov  5 2012 John Morris <john@zultron.com> - 2.6.0.pre0-0.1.20121102gited5d8f8
-- Update to 2.6.0.pre0-20121103git1fce7fb
+- Update to Haberler's 2.6.0.pre0-20121103git1fce7fb with
+  multiple RT systems support
+- Add configuration code for xenomai, based on Zultron kernel
 
 * Sun May  6 2012  <john@zultron.com> - 2.6.0.pre0-1
 - Updated to newest git:
