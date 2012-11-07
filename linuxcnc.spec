@@ -30,14 +30,13 @@
 %if 0%{?_with_xenomai}
 # If kversion isn't defined on the rpmbuild line, find the
 # version of the newest instelled xenomai kernel
-%if 0%{!?xenomai_kversion}
-%global xenomai_kversion $(rpm -q --qf='%{version}-%{release}.%{arch}' kernel | tail -1 || true)
+%if ! 0%{?xenomai_kversion}
+%global xenomai_kversion %(rpm -q --qf='%{version}-%{release}\\n' \\\
+    kernel-xenomai | tail -1 | sed 's/^.* is not installed.*/42/')
 %endif # !?xenomai_kversion
-%define xenomai_kernel /boot/config-%{xenomai_kversion}
-%define xenomai_kernel_headers %{_usrsrc}/kernels/%{xenomai_kversion}
-%global rt_opts %{xenomai_type} \
-	--with-kernel=%{xenomai_kernel} \
-	--with-kernel-headers=%{xenomai_kernel_headers}
+%global rt_opts --with-threads=%{xenomai_type} \\\
+	--with-kernel=%{xenomai_kversion}.%{_arch} \\\
+	--with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion}.%{_arch}
 %endif # ?_with_xenomai
 
 
@@ -52,17 +51,35 @@ URL:		http://www.linuxcnc.org
 # git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
 Source0:	%{name}-%{version}.%{_gitrel}.tar.bz2
 
-BuildRequires:  gtk2-devel libgnomeprintui22-devel
-BuildRequires:  mesa-libGL-devel mesa-libGLU-devel
-BuildRequires:	tcl-devel tk-devel bwidget libXaw-devel python-mtTkinter
-BuildRequires:  lyx pth-devel dblatex libmodbus kernel-devel blt-devel
-# temp. disable
-#BuildRequires:  asciidoc >= 8.5
+BuildRequires:  gcc-c++
+BuildRequires:  gtk2-devel
+BuildRequires:  libgnomeprintui22-devel
+BuildRequires:  mesa-libGL-devel
+BuildRequires:  mesa-libGLU-devel
+BuildRequires:  tcl-devel
+BuildRequires:  tk-devel
+BuildRequires:  bwidget
+BuildRequires:  libXaw-devel
+BuildRequires:  python-mtTkinter
+BuildRequires:  boost-devel
+BuildRequires:  lyx
+BuildRequires:  pth-devel
+BuildRequires:  libmodbus-devel
+BuildRequires:  blt-devel
+BuildRequires:  readline-devel
+BuildRequires:  source-highlight
+BuildRequires:  ImageMagick
+BuildRequires:  dvipng
+BuildRequires:  gettext
+BuildRequires:  python-devel
+BuildRequires:  dblatex
+BuildRequires:  asciidoc >= 8.5
 #
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
-Requires:	bwidget blt
-Requires:	kernel-rt
+
+Requires:       bwidget
+Requires:       blt
 
 # xenomai 
 %if 0%{?_with_xenomai}
@@ -72,6 +89,8 @@ BuildRequires:  xenomai-devel
 
 Requires:  kernel-xenomai == %{xenomai_kversion}
 Requires:  xenomai
+%else
+BuildRequires:  kernel-devel
 %endif
 
 %description
@@ -130,16 +149,12 @@ mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
 find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 %files
-%defattr(-,root,root)
 %attr(0755,-,-) %{_initddir}/realtime
-%dir %{_sysconfdir}/linuxcnc
-%{_sysconfdir}/linuxcnc/rtapi.conf
+%{_sysconfdir}/linuxcnc
 %config %{_datadir}/X11/app-defaults/*
-%attr(0755,-,-) %{_bindir}/[0-9a-qs-z]*
-%attr(0755,-,-) %{_bindir}/rs274
-%attr(6755,root,root) %{_bindir}/rtapi_app
-%{_prefix}/lib/emc2
-%{python2_sitelib}/*
+%{_bindir}/*
+/linuxcnc
+%{python_sitelib}/*
 %{_prefix}/lib/tcltk/linuxcnc
 %attr(0775,-,-) %{_libdir}/*.so*
 %{_datadir}/axis
@@ -177,7 +192,9 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 * Mon Nov  5 2012 John Morris <john@zultron.com> - 2.6.0-0.2.pre0
 - Update to Haberler's 2.6.0.pre0-20121106git98e9566 with
   multiple RT systems support
-- Add configuration code for xenomai, based on Zultron kernel
+- Add configuration code for xenomai, based on Zultron kernel-xenomai RPM
+- Update %%files section for xenomai and LinuxCNC updates
+- BR formatting
 
 * Sun May  6 2012  <john@zultron.com> - 2.6.0-0.1.pre0
 - Updated to newest git:
