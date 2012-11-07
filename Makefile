@@ -5,7 +5,7 @@
 
 # Input params
 # If BUMPREL==1, then increment the last digit of OLDRELEASE
-BUMPREL := 0
+BUMPREL := 1
 COMPRESSOR := bzip2
 TARBALL_EXT := .tar.bz2
 
