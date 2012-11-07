@@ -42,14 +42,14 @@
 
 Name:		linuxcnc
 Version:	2.6.0
-Release:	0.2%{_subrel}%{?dist}
+Release:	0.2%{?_subrel}%{?dist}
 Summary:	a software system for computer control of machine tools
 
 License:	GPL/LGPL
 Group:		Applications/Engineering
 URL:		http://www.linuxcnc.org
 # git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
-Source0:	%{name}-%{version}.%{_gitrel}.tar.bz2
+Source0:	%{name}-%{version}%{?_subrel}.tar.bz2
 
 BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel

@@ -45,7 +45,7 @@ endif
 NEWRELEASEFULL := ${NEWRELEASE}${DOTPREORRC}.${GITREL}
 
 # tarball info
-TARBALL := ${PACKAGE}-${VERSION}${PREORRC}.${GITREL}${TARBALL_EXT}
+TARBALL := ${PACKAGE}-${VERSION}${DOTPREORRC}.${GITREL}${TARBALL_EXT}
 
 # committer info
 EMAIL := $(shell git config --get user.email)
@@ -58,7 +58,7 @@ tarball:  ${TARBALL}
 
 ${TARBALL}:
 	(cd ${SUBMODULE}; \
-	git archive --prefix=${PACKAGE}-${VERSION}${PREORRC}/ HEAD) | ${COMPRESSOR} > ${TARBALL}
+	git archive --prefix=${PACKAGE}-${VERSION}/ HEAD) | ${COMPRESSOR} > ${TARBALL}
 	md5sum ${TARBALL} > sources
 
 # update the specfile with git info
