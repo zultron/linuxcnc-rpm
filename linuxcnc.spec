@@ -5,7 +5,9 @@
 %global _with_xenomai_user 0
 %global _with_simulator 0
 
-%global _gitrel    20121103git1fce7fb
+%global _gitrel    20121106git98e9566
+%global _pre       0
+%global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
 %if 0%{?_with_rtai}
 %global rt_opts --with-threads=rtai
@@ -40,8 +42,8 @@
 
 
 Name:		linuxcnc
-Version:	2.6.0.pre0
-Release:	0.1.%{_gitrel}%{?dist}
+Version:	2.6.0
+Release:	0.2%{_subrel}%{?dist}
 Summary:	a software system for computer control of machine tools
 
 License:	GPL/LGPL
@@ -172,12 +174,12 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_docdir}/%{name}-%{version}
 
 %changelog
-* Mon Nov  5 2012 John Morris <john@zultron.com> - 2.6.0.pre0-0.1.20121102gited5d8f8
-- Update to Haberler's 2.6.0.pre0-20121103git1fce7fb with
+* Mon Nov  5 2012 John Morris <john@zultron.com> - 2.6.0-0.2.pre0
+- Update to Haberler's 2.6.0.pre0-20121106git98e9566 with
   multiple RT systems support
 - Add configuration code for xenomai, based on Zultron kernel
 
-* Sun May  6 2012  <john@zultron.com> - 2.6.0.pre0-1
+* Sun May  6 2012  <john@zultron.com> - 2.6.0-0.1.pre0
 - Updated to newest git:
   - Forward-port of Michael Buesch's patches
   - Fixes to the hal stacksize, no more crash!
