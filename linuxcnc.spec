@@ -5,7 +5,7 @@
 %global _with_xenomai_user 0
 %global _with_simulator 0
 
-%global _gitrel    20121106git98e9566
+%global _gitrel    20121108gitb275957
 %global _pre       0
 %global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
@@ -42,7 +42,7 @@
 
 Name:		linuxcnc
 Version:	2.6.0
-Release:	0.2%{?_subrel}%{?dist}
+Release:	0.3%{?_subrel}%{?dist}
 Summary:	a software system for computer control of machine tools
 
 License:	GPL/LGPL
@@ -115,7 +115,7 @@ Summary:	Documentation for %{name}
 
 %description doc
 
-Documentation files for LinuxCNC
+Documentation files for the %{name} package
 
 %prep
 %setup -q
@@ -127,7 +127,7 @@ cd src
 	    --with-tkConfig=%{_libdir}/tkConfig.sh \
 	    --with-tclConfig=%{_libdir}/tclConfig.sh \
 	    --enable-build-documentation
-make %{?_smp_mflags}
+make %{?_smp_mflags} BUILD_VERBOSE=1
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -189,7 +189,12 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_docdir}/%{name}-%{version}
 
 %changelog
-* Mon Nov  5 2012 John Morris <john@zultron.com> - 2.6.0-0.2.pre0
+* Wed Nov  8 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
+- Update to 2.6.0-20121108gitb275957:
+-   Fixes to compiler math options for xenomai
+- Enable verbose builds
+
+* Mon Nov  6 2012 John Morris <john@zultron.com> - 2.6.0-0.2.pre0
 - Update to Haberler's 2.6.0.pre0-20121106git98e9566 with
   multiple RT systems support
 - Add configuration code for xenomai, based on Zultron kernel-xenomai RPM
