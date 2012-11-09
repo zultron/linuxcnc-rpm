@@ -5,7 +5,7 @@
 %global _with_xenomai_user 0
 %global _with_simulator 0
 
-%global _gitrel    20121108gitb275957
+%global _gitrel    20121109gita0a0322
 %global _pre       0
 %global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
@@ -189,8 +189,8 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_docdir}/%{name}-%{version}
 
 %changelog
-* Wed Nov  8 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
-- Update to 2.6.0-20121108gitb275957:
+* Fri Nov  9 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
+- Update to 2.6.0-20121109gita0a0322
 -   Fixes to compiler math options for xenomai
 - Enable verbose builds
 
