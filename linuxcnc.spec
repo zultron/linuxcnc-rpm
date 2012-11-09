@@ -31,8 +31,7 @@
 # If kversion isn't defined on the rpmbuild line, find the
 # version of the newest instelled xenomai kernel
 %if ! 0%{?xenomai_kversion}
-%global xenomai_kversion %(rpm -q --qf='%{version}-%{release}\\n' \\\
-    kernel-xenomai | tail -1 | sed 's/^.* is not installed.*/42/')
+%global xenomai_kversion 2.6.38.8-2.xenomai.el6
 %endif # !?xenomai_kversion
 %global rt_opts --with-threads=%{xenomai_type} \\\
 	--with-kernel=%{xenomai_kversion}.%{_arch} \\\
