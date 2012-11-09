@@ -34,8 +34,8 @@
 %global xenomai_kversion 2.6.38.8-2.xenomai.el6
 %endif # !?xenomai_kversion
 %global rt_opts --with-threads=%{xenomai_type} \\\
-	--with-kernel=%{xenomai_kversion}.%{_arch} \\\
-	--with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion}.%{_arch}
+	--with-kernel=%{xenomai_kversion}.%{_target_cpu} \\\
+	--with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion}.%{_target_cpu}
 %endif # ?_with_xenomai
 
 
