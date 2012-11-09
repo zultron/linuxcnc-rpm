@@ -73,6 +73,7 @@ BuildRequires:  gettext
 BuildRequires:  python-devel
 BuildRequires:  dblatex
 BuildRequires:  asciidoc >= 8.5
+BuildRequires:  python-lxml
 #
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
