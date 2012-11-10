@@ -5,7 +5,10 @@
 %global _with_xenomai_user 0
 %global _with_simulator 0
 
-%global _gitrel    20121109gita0a0322
+# quicker build with no docs
+%global _with_docs 0
+
+%global _gitrel    20121109git894f2cf
 %global _pre       0
 %global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
@@ -33,22 +36,23 @@
 %if ! 0%{?xenomai_kversion}
 %global xenomai_kversion 2.6.38.8-2.xenomai.el6
 %endif # !?xenomai_kversion
+%define xenomai_kversion_arch %{xenomai_kversion}.%{_target_cpu}
 %global rt_opts --with-threads=%{xenomai_type} \\\
-	--with-kernel=%{xenomai_kversion}.%{_target_cpu} \\\
-	--with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion}.%{_target_cpu}
+        --with-kernel=%{xenomai_kversion_arch} \\\
+        --with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion_arch}
 %endif # ?_with_xenomai
 
 
-Name:		linuxcnc
-Version:	2.6.0
-Release:	0.3%{?_subrel}%{?dist}
-Summary:	a software system for computer control of machine tools
+Name:           linuxcnc
+Version:        2.6.0
+Release:        0.3%{?_subrel}%{?dist}
+Summary:        A software system for computer control of machine tools
 
-License:	GPL/LGPL
-Group:		Applications/Engineering
-URL:		http://www.linuxcnc.org
+License:        GPLv2
+Group:          Applications/Engineering
+URL:            http://www.linuxcnc.org
 # git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
-Source0:	%{name}-%{version}%{?_subrel}.tar.bz2
+Source0:        %{name}-%{version}%{?_subrel}.tar.bz2
 
 BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel
@@ -81,15 +85,16 @@ BuildRequires:  python-lxml
 Requires:       bwidget
 Requires:       blt
 
-# xenomai 
 %if 0%{?_with_xenomai}
+# xenomai kernels
 BuildRequires:  kernel-xenomai == %{xenomai_kversion}
 BuildRequires:  kernel-xenomai-devel
 BuildRequires:  xenomai-devel
 
-Requires:  kernel-xenomai == %{xenomai_kversion}
-Requires:  xenomai
+Requires:       kernel-xenomai == %{xenomai_kversion}
+Requires:       xenomai
 %else
+# normal kernels
 BuildRequires:  kernel-devel
 %endif
 
@@ -102,7 +107,7 @@ This version is from Michael Haberler's preview that integrates RTAI,
 RT_PREEMPT, Xenomai-kernel, Xenomai-User and Simulator
 
 %package devel
-Group: Development/Libraries/C and C++
+Group: Development/Libraries
 Summary: Devel package for %{name}
 Requires: %{name} = %{version}
 
@@ -110,8 +115,8 @@ Requires: %{name} = %{version}
 Development headers and libs for the %{name} package
 
 %package doc
-Group:		Documentation
-Summary:	Documentation for %{name}
+Group:          Documentation
+Summary:        Documentation for %{name}
 
 %description doc
 
@@ -124,9 +129,11 @@ Documentation files for the %{name} package
 cd src
 ./autogen.sh
 %configure  %{rt_opts} \
-	    --with-tkConfig=%{_libdir}/tkConfig.sh \
-	    --with-tclConfig=%{_libdir}/tclConfig.sh \
-	    --enable-build-documentation
+%if 0%{_with_docs}
+            --enable-build-documentation \
+%endif
+            --with-tkConfig=%{_libdir}/tkConfig.sh \
+            --with-tclConfig=%{_libdir}/tclConfig.sh
 make %{?_smp_mflags} BUILD_VERBOSE=1
 
 %install
@@ -149,13 +156,19 @@ mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
 find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 %files
+%defattr(-,root,root)
 %attr(0755,-,-) %{_initddir}/realtime
 %{_sysconfdir}/linuxcnc
-%config %{_datadir}/X11/app-defaults/*
-%{_bindir}/*
+%{_datadir}/X11/app-defaults/*
+# /usr/bin/linuxcnc_module_helper must be setuid root; others not
+%attr(04755,-,-) %{_bindir}/linuxcnc_module_helper
+%attr(0755,-,-) %{_bindir}/[0-9a-km-z]*
+%attr(0755,-,-) %{_bindir}/linuxcnc
+%attr(0755,-,-) %{_bindir}/linuxcnc[a-z]*
+%attr(0755,-,-) %{_bindir}/latency*
 /linuxcnc
 %{python_sitelib}/*
-%{_prefix}/lib/tcltk/linuxcnc
+%{_exec_prefix}/lib/tcltk/linuxcnc
 %attr(0775,-,-) %{_libdir}/*.so*
 %{_datadir}/axis
 %{_datadir}/glade3
@@ -181,18 +194,24 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %doc %{_mandir}/man[19]/*
 
 %files devel
+%defattr(0644,-,-)
 %{_includedir}/linuxcnc
 %{_libdir}/liblinuxcnc.a
 %doc %{_mandir}/man3/*
 
 %files doc
+%defattr(0644,-,-)
 %{_docdir}/%{name}-%{version}
 
 %changelog
 * Fri Nov  9 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
-- Update to 2.6.0-20121109gita0a0322
+- Update to 2.6.0-20121109git894f2cf
 -   Fixes to compiler math options for xenomai
+-   Fixes to kernel module symbol sharing
 - Enable verbose builds
+- Option to disable building docs for a quick build
+- linuxcnc-module-helper setuid root
+- rpmlint cleanups:  tabs, perms
 
 * Mon Nov  6 2012 John Morris <john@zultron.com> - 2.6.0-0.2.pre0
 - Update to Haberler's 2.6.0.pre0-20121106git98e9566 with
