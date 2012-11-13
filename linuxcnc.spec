@@ -8,7 +8,7 @@
 # quicker build with no docs
 %global _with_docs 0
 
-%global _gitrel    20121109git894f2cf
+%global _gitrel    20121112gite024e61
 %global _pre       0
 %global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
@@ -45,7 +45,7 @@
 
 Name:           linuxcnc
 Version:        2.6.0
-Release:        0.3%{?_subrel}%{?dist}
+Release:        0.4%{?_subrel}%{?dist}
 Summary:        A software system for computer control of machine tools
 
 License:        GPLv2
@@ -204,6 +204,10 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_docdir}/%{name}-%{version}
 
 %changelog
+* Mon Nov 12 2012 John Morris <john@zultron.com> - 2.6.0-0.4.pre0
+- Update to 2.6.0-20121112gite024e61
+-   Fix for Xenomai recommended kernel option
+
 * Fri Nov  9 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
 - Update to 2.6.0-20121109git894f2cf
 -   Fixes to compiler math options for xenomai
