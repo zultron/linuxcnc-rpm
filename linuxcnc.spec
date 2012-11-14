@@ -83,19 +83,20 @@ BuildRequires:  bwidget
 BuildRequires:  libXaw-devel
 BuildRequires:  python-mtTkinter
 BuildRequires:  boost-devel
-BuildRequires:  lyx
 BuildRequires:  pth-devel
 BuildRequires:  libmodbus-devel
 BuildRequires:  blt-devel
 BuildRequires:  readline-devel
+BuildRequires:  gettext
+BuildRequires:  python-devel
+BuildRequires:  python-lxml
+# for building docs
+BuildRequires:  lyx
 BuildRequires:  source-highlight
 BuildRequires:  ImageMagick
 BuildRequires:  dvipng
-BuildRequires:  gettext
-BuildRequires:  python-devel
 BuildRequires:  dblatex
 BuildRequires:  asciidoc >= 8.5
-BuildRequires:  python-lxml
 #
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
@@ -114,6 +115,7 @@ BuildRequires:  xenomai-devel
 
 Requires:       bwidget
 Requires:       blt
+Requires:       python-mtTkinter
 %if 0%{?_with_xenomai}
 # xenomai kernels
 %if 0%{?_with_xenomai_kernel}
