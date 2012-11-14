@@ -1,8 +1,8 @@
 # select the realtime variety here
 %global _with_rtai 0
 %global _with_rt_preempt 0
-%global _with_xenomai_kernel 1
-%global _with_xenomai_user 0
+%global _with_xenomai_kernel 0
+%global _with_xenomai_user 1
 %global _with_simulator 0
 
 # quicker build with no docs
@@ -30,18 +30,36 @@
 %global rt_opts --enable-simulator
 %endif
 
+# Xenomai settings
 %if 0%{?_with_xenomai}
-# If kversion isn't defined on the rpmbuild line, find the
-# version of the newest instelled xenomai kernel
+#
+# Determine kernel version
 %if ! 0%{?xenomai_kversion}
+#
+# Xenomai-kernel:  predefine kernel version
+%if 0%{?_with_xenomai_kernel}
+# Mock needs to know the kernel version in advance, so we must
+# define it here.  If building manually, xenomai_kversion can
+# be passed in through the rpmbuild command line.
 %global xenomai_kversion 2.6.38.8-2.xenomai.el6
-%endif # !?xenomai_kversion
+%endif # _with_xenomai_kernel
+#
+# Xenomai-user:  installed kernel version
+%if 0%{?_with_xenomai_user}
+# User-land threads systems don't need a specific kernel version,
+# so find whichever one is installed if not specified on the
+# rpmbuild command line
+%define xenomai_kversion %(rpm -q --qf='%%{version}-%%{release}' \\\
+	kernel-xenomai | tail -1)
+%endif # _with_xenomai_user
+%endif # ! ?xenomai_kversion
+#
+# Xenomai ./configure settings
 %define xenomai_kversion_arch %{xenomai_kversion}.%{_target_cpu}
 %global rt_opts --with-threads=%{xenomai_type} \\\
         --with-kernel=%{xenomai_kversion_arch} \\\
         --with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion_arch}
 %endif # ?_with_xenomai
-
 
 Name:           linuxcnc
 Version:        2.6.0
@@ -82,16 +100,27 @@ BuildRequires:  python-lxml
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
 
-Requires:       bwidget
-Requires:       blt
-
 %if 0%{?_with_xenomai}
 # xenomai kernels
+%if 0%{?_with_xenomai_kernel}
 BuildRequires:  kernel-xenomai == %{xenomai_kversion}
+%else
+BuildRequires:  kernel-xenomai
+%endif # _with_xenomai_kernel
 BuildRequires:  kernel-xenomai-devel
 BuildRequires:  xenomai-devel
+%endif # _with_xenomai
 
+
+Requires:       bwidget
+Requires:       blt
+%if 0%{?_with_xenomai}
+# xenomai kernels
+%if 0%{?_with_xenomai_kernel}
 Requires:       kernel-xenomai == %{xenomai_kversion}
+%else
+Requires:  kernel-xenomai
+%endif # _with_xenomai_kernel
 Requires:       xenomai
 %else
 # normal kernels
@@ -161,7 +190,9 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_sysconfdir}/linuxcnc
 %{_datadir}/X11/app-defaults/*
 # /usr/bin/linuxcnc_module_helper must be setuid root; others not
+%if 0%{?_with_xenomai_kernel}
 %attr(04755,-,-) %{_bindir}/linuxcnc_module_helper
+%endif # _with_xenomai_kernel
 %attr(0755,-,-) %{_bindir}/[0-9a-km-z]*
 %attr(0755,-,-) %{_bindir}/linuxcnc
 %attr(0755,-,-) %{_bindir}/linuxcnc[a-z]*
