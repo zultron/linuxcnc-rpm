@@ -1,76 +1,81 @@
 # select the realtime variety here
 %global _with_rtai 0
 %global _with_rt_preempt 0
-%global _with_xenomai_kernel 0
-%global _with_xenomai_user 1
+%global _with_xenomai_kernel 1
+%global _with_xenomai_user 0
 %global _with_simulator 0
 
 # quicker build with no docs
 %global _with_docs 0
 
+# pre-release settings
 %global _gitrel    20121112gite024e61
 %global _pre       0
-%global _subrel    %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
 
-%if 0%{?_with_rtai}
-%global rt_opts --with-threads=rtai
+# threading system settings
+%if 0%{?_with_rt_preempt}
+%global with_threads --with-threads=rt-preempt-user
+%global kernel_pkg kernel-rt
+%global reltag rt_preempt
 %endif
-%if 0%{?_with_rt_preempt 0}
-%global rt_opts --with-threads=rt-preempt-user
-%endif
-%if 0%{?_with_xenomai_kernel 0}
-%global xenomai_type xenomai-kernel
-%global _with_xenomai 1
-%endif
-%if 0%{?_with_xenomai_user 0}
-%global xenomai_type xenomai-user
-%global _with_xenomai 1
-%endif
-%if 0%{?_with_simulator 0}
-%global rt_opts --enable-simulator
-%endif
-
-# Xenomai settings
-%if 0%{?_with_xenomai}
-#
-# Determine kernel version
-%if ! 0%{?xenomai_kversion}
-#
-# Xenomai-kernel:  predefine kernel version
 %if 0%{?_with_xenomai_kernel}
-# Mock needs to know the kernel version in advance, so we must
-# define it here.  If building manually, xenomai_kversion can
-# be passed in through the rpmbuild command line.
-%global xenomai_kversion 2.6.38.8-2.xenomai.el6
-%endif # _with_xenomai_kernel
-#
-# Xenomai-user:  installed kernel version
+%global with_threads --with-threads=xenomai-kernel
+%global kernel_pkg kernel-xenomai
+%global reltag xeno_kernel
+%global kversion_hardcoded 2.6.38.8-3.el6.xenomai
+%global _with_xenomai 1
+%endif
 %if 0%{?_with_xenomai_user}
-# User-land threads systems don't need a specific kernel version,
-# so find whichever one is installed if not specified on the
-# rpmbuild command line
-%define xenomai_kversion %(rpm -q --qf='%%{version}-%%{release}' \\\
-	kernel-xenomai | tail -1)
-%endif # _with_xenomai_user
-%endif # ! ?xenomai_kversion
+%global with_threads --with-threads=xenomai-user
+%global kernel_pkg kernel-xenomai
+%global reltag xeno_user
+%global _with_xenomai 1
+%endif
+%if 0%{?_with_simulator}
+%global with_threads --enable-simulator
+%global reltag simulator
+%endif
+
+# release configuration
+%global _prerel %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
+%global _subrel %{?reltag:.%{reltag}}%{?_prerel}
+%global _relsuffix %{_subrel}%{dist}
+
+# kernel version computation
 #
-# Xenomai ./configure settings
-%define xenomai_kversion_arch %{xenomai_kversion}.%{_target_cpu}
-%global rt_opts --with-threads=%{xenomai_type} \\\
-        --with-kernel=%{xenomai_kversion_arch} \\\
-        --with-kernel-headers=%{_usrsrc}/kernels/%{xenomai_kversion_arch}
-%endif # ?_with_xenomai
+# kversion can be passed in from the commandline...
+%if 0%{!?kversion:1}
+# ...and if not, then discover it
+%if 0%{?kversion_hardcoded:1}
+# threads systems that build kernel modules need the kernel version
+# hardcoded so that mock knows in advance what kernel package to
+# install
+%define kversion %{kversion_hardcoded}
+%else # ! kversion_hardcoded
+# threads systems that run in userland can use any installed version
+# of the needed RT kernel
+%define kversion %(rpm -q --qf='%%{version}-%%{release}\\n' \\\
+	%{kernel_pkg}-devel | tail -1)
+%endif # kversion_hardcoded
+%endif # kversion undefined
+
+# thread system ./configure settings
+%define kversion_arch %{kversion}.%{_target_cpu}
+%global rt_opts %{with_threads} \\\
+        --with-kernel=%{kversion_arch} \\\
+        --with-kernel-headers=%{_usrsrc}/kernels/%{kversion_arch}
+
 
 Name:           linuxcnc
 Version:        2.6.0
-Release:        0.4%{?_subrel}%{?dist}
+Release:        0.4%{?_relsuffix}
 Summary:        A software system for computer control of machine tools
 
 License:        GPLv2
 Group:          Applications/Engineering
 URL:            http://www.linuxcnc.org
 # git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
-Source0:        %{name}-%{version}%{?_subrel}.tar.bz2
+Source0:        %{name}-%{version}%{?_prerel}.tar.bz2
 
 BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel
@@ -100,15 +105,16 @@ BuildRequires:  asciidoc >= 8.5
 #
 # any of the following?
 #BuildRequires:  dietlibc-devel glibc-static
-
-%if 0%{?_with_xenomai}
-# xenomai kernels
-%if 0%{?_with_xenomai_kernel}
-BuildRequires:  kernel-xenomai == %{xenomai_kversion}
+#
+# kernel pkg BRs
+%if 0%{?kversion_hardcoded:1}
+BuildRequires:  %{kernel_pkg}-devel == %{kversion}
 %else
-BuildRequires:  kernel-xenomai
-%endif # _with_xenomai_kernel
-BuildRequires:  kernel-xenomai-devel
+BuildRequires:  %{kernel_pkg}-devel
+%endif
+#
+# thread-specific BRs
+%if 0%{?_with_xenomai}
 BuildRequires:  xenomai-devel
 %endif # _with_xenomai
 
@@ -116,18 +122,19 @@ BuildRequires:  xenomai-devel
 Requires:       bwidget
 Requires:       blt
 Requires:       python-mtTkinter
-%if 0%{?_with_xenomai}
-# xenomai kernels
-%if 0%{?_with_xenomai_kernel}
-Requires:       kernel-xenomai == %{xenomai_kversion}
+#
+# kernel pkg Requires:
+%if 0%{?kversion_hardcoded:1}
+Requires:       %{kernel_pkg} == %{kversion}
 %else
-Requires:  kernel-xenomai
-%endif # _with_xenomai_kernel
-Requires:       xenomai
-%else
-# normal kernels
-BuildRequires:  kernel-devel
+Requires:       %{kernel_pkg}
 %endif
+#
+# thread-specific Requires:
+%if 0%{?_with_xenomai}
+Requires:       xenomai
+%endif # _with_xenomai
+
 
 %description
 
@@ -136,6 +143,7 @@ computer control of machine tools such as milling machines and lathes.
 
 This version is from Michael Haberler's preview that integrates RTAI,
 RT_PREEMPT, Xenomai-kernel, Xenomai-User and Simulator
+
 
 %package devel
 Group: Development/Libraries
@@ -152,6 +160,7 @@ Summary:        Documentation for %{name}
 %description doc
 
 Documentation files for the %{name} package
+
 
 %prep
 %setup -q
@@ -192,7 +201,7 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %{_sysconfdir}/linuxcnc
 %{_datadir}/X11/app-defaults/*
 # /usr/bin/linuxcnc_module_helper must be setuid root; others not
-%if 0%{?_with_xenomai_kernel}
+%if 0%{?kversion_hardcoded:1}
 %attr(04755,-,-) %{_bindir}/linuxcnc_module_helper
 %endif # _with_xenomai_kernel
 %attr(0755,-,-) %{_bindir}/[0-9a-km-z]*
@@ -227,19 +236,28 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %doc %{_mandir}/man[19]/*
 
 %files devel
-%defattr(0644,-,-)
+%defattr(-,root,root)
 %{_includedir}/linuxcnc
 %{_libdir}/liblinuxcnc.a
 %doc %{_mandir}/man3/*
 
 %files doc
-%defattr(0644,-,-)
+%defattr(-,root,root)
 %{_docdir}/%{name}-%{version}
 
 %changelog
 * Mon Nov 12 2012 John Morris <john@zultron.com> - 2.6.0-0.4.pre0
 - Update to 2.6.0-20121112gite024e61
 -   Fix for Xenomai recommended kernel option
+- Add preempt-rt support
+- Generalize kernel package/version logic for various threads systems
+  - Each thread system-specific section defines some config variables
+  - Resulting logic is much simpler and easier to read
+- Fix incorrect %defattr statements
+- Bump xenomai kversion release
+- Add thread system info in release tag
+- Base kernel package version on -devel pkg, not kernel package
+- Remove BR: kernel; should only need kernel-devel
 
 * Fri Nov  9 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
 - Update to 2.6.0-20121109git894f2cf
@@ -265,8 +283,3 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 * Wed Apr 25 2012  <john@zultron.com> - 2.5.0.1-1
 - Initial RPM version
-
-
-
-
-
