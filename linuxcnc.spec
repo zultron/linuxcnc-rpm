@@ -1,81 +1,69 @@
-# select the realtime variety here
-%global _with_rtai 0
-%global _with_rt_preempt 0
-%global _with_xenomai_kernel 1
-%global _with_xenomai_user 0
-%global _with_simulator 0
+# disable realtime varieties here
+%global _without_posix 0
+%global _without_rt_preempt 0
+%global _without_xenomai 0
+%global _without_xenomai_kernel 0
+# disabling until we have a reasonable RTAI kernel
+%global _without_rtai_kernel 1
+
+# list kernel package versions here
+%global xenomai_kpkg_version 3.5.7-6.xenomai.el6
+%global rtai_kpkg_version 2.6.38.8-5.el6.rtai
 
 # quicker build with no docs
-%global _with_docs 0
+%global _without_docs 1
 
 # pre-release settings
-%global _gitrel    20121112gite024e61
-%global _pre       0
+%global _gitrel    20130905git05ed2b1
+%global _pre       ubc3
 
 # threading system settings
-%if 0%{?_with_rt_preempt}
-%global with_threads --with-threads=rt-preempt-user
-%global kernel_pkg kernel-rt
-%global reltag rt_preempt
+%if %{_without_posix}
+%global configure_args_posix --without-posix
 %endif
-%if 0%{?_with_xenomai_kernel}
-%global with_threads --with-threads=xenomai-kernel
-%global kernel_pkg kernel-xenomai
-%global reltag xeno_kernel
-%global kversion_hardcoded 2.6.38.8-3.el6.xenomai
+
+%if %{_without_rt_preempt}
+%global configure_args_rt_preempt --without-rt-preempt
+%endif
+
+%if %{_without_xenomai}
+%global configure_args_xenomai --without-xenomai
 %global _with_xenomai 1
 %endif
-%if 0%{?_with_xenomai_user}
-%global with_threads --with-threads=xenomai-user
-%global kernel_pkg kernel-xenomai
-%global reltag xeno_user
+
+%if %{_without_xenomai_kernel}
+%global configure_args_xenomai_kernel --without-xenomai-kernel
+%else
+# The wildcard is a hack to include the 'buildid' component in
+# xenomai_kver, not present in the pkg version but present in $(uname
+# -r).  See https://github.com/zultron/kernel-xenomai-rpm/issues/1
+%define xenomai_kver %(basename \\\
+	%{_usrsrc}/kernels/%{xenomai_kpkg_version}*.%{_target_cpu})
+%global configure_args_xenomai_kernel \\\
+	--with-xenomai-kernel-sources=%{_usrsrc}/kernels/%{xenomai_kver}
 %global _with_xenomai 1
 %endif
-%if 0%{?_with_simulator}
-%global with_threads --enable-simulator
-%global reltag simulator
+
+%if %{_without_rtai_kernel}
+%global configure_args_rtai_kernel --without-rtai-kernel
+%else
+# Same wildcard hack.
+%define rtai_kver %(basename \\\
+	%{_usrsrc}/kernels/%{rtai_kpkg_version}*.%{_target_cpu})
+%global configure_args_rtai_kernel \\\
+	--with-rtai-kernel-sources=%{_usrsrc}/kernels/%{rtai_kver}
 %endif
-
-# release configuration
-%global _prerel %{?_pre:.pre%{_pre}}%{?_gitrel:.%{_gitrel}}
-%global _subrel %{?reltag:.%{reltag}}%{?_prerel}
-%global _relsuffix %{_subrel}%{dist}
-
-# kernel version computation
-#
-# kversion can be passed in from the commandline...
-%if 0%{!?kversion:1}
-# ...and if not, then discover it
-%if 0%{?kversion_hardcoded:1}
-# threads systems that build kernel modules need the kernel version
-# hardcoded so that mock knows in advance what kernel package to
-# install
-%define kversion %{kversion_hardcoded}
-%else # ! kversion_hardcoded
-# threads systems that run in userland can use any installed version
-# of the needed RT kernel
-%define kversion %(rpm -q --qf='%%{version}-%%{release}\\n' \\\
-	%{kernel_pkg}-devel | tail -1)
-%endif # kversion_hardcoded
-%endif # kversion undefined
-
-# thread system ./configure settings
-%define kversion_arch %{kversion}.%{_target_cpu}
-%global rt_opts %{with_threads} \\\
-        --with-kernel=%{kversion_arch} \\\
-        --with-kernel-headers=%{_usrsrc}/kernels/%{kversion_arch}
 
 
 Name:           linuxcnc
 Version:        2.6.0
-Release:        0.4%{?_relsuffix}
+Release:        0.5%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
 License:        GPLv2
 Group:          Applications/Engineering
 URL:            http://www.linuxcnc.org
-# git://git.mah.priv.at/emc2-dev.git rtos-integration-preview1 branch
-Source0:        %{name}-%{version}%{?_prerel}.tar.bz2
+Source0:        %{name}-%{version}%{?_gitrel:.%{_gitrel}}.tar.bz2
 
 BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel
@@ -95,45 +83,37 @@ BuildRequires:  readline-devel
 BuildRequires:  gettext
 BuildRequires:  python-devel
 BuildRequires:  python-lxml
+BuildRequires:	libudev-devel
 # for building docs
+%if ! %{_without_docs}
 BuildRequires:  lyx
 BuildRequires:  source-highlight
 BuildRequires:  ImageMagick
 BuildRequires:  dvipng
 BuildRequires:  dblatex
 BuildRequires:  asciidoc >= 8.5
-#
-# any of the following?
-#BuildRequires:  dietlibc-devel glibc-static
-#
-# kernel pkg BRs
-%if 0%{?kversion_hardcoded:1}
-BuildRequires:  %{kernel_pkg}-devel == %{kversion}
-%else
-BuildRequires:  %{kernel_pkg}-devel
 %endif
 #
-# thread-specific BRs
+# Flavor-specific BRs
+#
+# All Xenomai flavors need library headers
 %if 0%{?_with_xenomai}
 BuildRequires:  xenomai-devel
-%endif # _with_xenomai
-
+%endif
+# Xenomai kthreads need kernel headers
+%if ! %{_without_xenomai_kernel}
+BuildRequires:  kernel-xenomai-devel == %{xenomai_kpkg_version}
+%endif
+#
+# RTAI kthreads need kernel and library headers
+%if ! %{_without_rtai_kernel}
+BuildRequires:	kernel-rtai-devel == %{rtai_kpkg_version}
+BuildRequires:  rtai-devel
+%endif
 
 Requires:       bwidget
 Requires:       blt
 Requires:       python-mtTkinter
-#
-# kernel pkg Requires:
-%if 0%{?kversion_hardcoded:1}
-Requires:       %{kernel_pkg} == %{kversion}
-%else
-Requires:       %{kernel_pkg}
-%endif
-#
-# thread-specific Requires:
-%if 0%{?_with_xenomai}
-Requires:       xenomai
-%endif # _with_xenomai
 
 
 %description
@@ -162,19 +142,112 @@ Summary:        Documentation for %{name}
 Documentation files for the %{name} package
 
 
+%if ! %{_without_posix}
+%package	flavor-posix
+Summary:	LinuxCNC modules for the POSIX flavor
+Provides:	linuxcnc-flavor
+Provides:	linuxcnc-flavor-posix
+Requires:	linuxcnc == %{version}
+
+%description	flavor-posix
+
+This package provides the RT modules for the LinuxCNC POSIX flavor.
+
+This flavor has no RT capabilities and is for simulation and non-RT
+applications only.  It requires no special kernel.
+
+%endif
+
+%if ! %{_without_rt_preempt}
+%package	flavor-rt-preempt
+Summary:	LinuxCNC modules for the RT_PREEMPT flavor
+Provides:	linuxcnc-flavor
+Provides:	linuxcnc-flavor-rt-preempt
+Requires:	linuxcnc == %{version}
+Requires:	kernel-rt
+
+%description	flavor-rt-preempt
+
+This package provides the RT modules for the LinuxCNC RT_PREEMPT flavor.
+
+It requires a kernel with the RT_PREEMPT patch.
+
+%endif
+
+%if ! %{_without_xenomai}
+%package	flavor-xenomai
+Summary:	LinuxCNC modules for the Xenomai flavor
+Provides:	linuxcnc-flavor
+Provides:	linuxcnc-flavor-xenomai
+Requires:	linuxcnc == %{version}
+Requires:	kernel-xenomai
+Requires:	xenomai
+
+%description	flavor-xenomai
+
+This package provides the RT modules for the LinuxCNC Xenomai flavor.
+
+It requires a kernel with the Xenomai patch.
+
+%endif
+
+%if ! %{_without_xenomai_kernel}
+%package	flavor-xenomai-kernel
+Summary:	LinuxCNC modules for the Xenomai kernel threads flavor
+Provides:	linuxcnc-flavor
+Provides:	linuxcnc-flavor-xenomai-kernel
+Requires:	linuxcnc == %{version}
+Requires:	kernel-xenomai == %{xenomai_kpkg_version}
+Requires:	xenomai
+
+%description	flavor-xenomai-kernel
+
+This package provides the RT kernel modules for the LinuxCNC Xenomai
+kernel-threads flavor.
+
+It requires the Xenomai kernel package, version %{xenomai_kpkg_version}.
+
+%endif
+
+%if ! %{_without_rtai_kernel}
+%package	flavor-rtai-kernel
+Summary:	LinuxCNC modules for the RTAI kernel threads flavor
+Provides:	linuxcnc-flavor
+Provides:	linuxcnc-flavor-rtai-kernel
+Requires:	linuxcnc == %{version}
+Requires:	kernel-rtai == %{rtai_kpkg_version}
+Requires:	rtai
+
+%description	flavor-rtai-kernel
+
+This package provides the RT kernel modules for the LinuxCNC RTAI
+kernel-threads flavor.
+
+It requires the RTAI kernel package, version %{rtai_kpkg_version}.
+
+%endif
+
+
 %prep
 %setup -q
+
 
 %build
 cd src
 ./autogen.sh
-%configure  %{rt_opts} \
-%if 0%{_with_docs}
-            --enable-build-documentation \
+%configure \
+    %{?configure_args_posix} \
+    %{?configure_args_rt_preempt} \
+    %{?configure_args_xenomai} \
+    %{?configure_args_xenomai_kernel} \
+    %{?configure_args_rtai_kernel} \
+%if ! 0%{_without_docs}
+    --enable-build-documentation \
 %endif
-            --with-tkConfig=%{_libdir}/tkConfig.sh \
-            --with-tclConfig=%{_libdir}/tclConfig.sh
-make %{?_smp_mflags} BUILD_VERBOSE=1
+    --with-tkConfig=%{_libdir}/tkConfig.sh \
+    --with-tclConfig=%{_libdir}/tclConfig.sh
+make %{?_smp_mflags} V=1
+
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -182,9 +255,6 @@ cd src
 make -e install DESTDIR=$RPM_BUILD_ROOT \
      DIR='install -d -m 0755' FILE='install -m 0644' \
      EXE='install -m 0755' SETUID='install -m 0755'
-# put the init file in the right place
-mkdir $RPM_BUILD_ROOT/etc/rc.d
-mv $RPM_BUILD_ROOT/etc/init.d $RPM_BUILD_ROOT%{_initddir}
 # put the docs in the right place
 mv $RPM_BUILD_ROOT/usr/share/doc/linuxcnc \
    $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version}
@@ -197,25 +267,30 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 %files
 %defattr(-,root,root)
-%attr(0755,-,-) %{_initddir}/realtime
 %{_sysconfdir}/linuxcnc
 %{_datadir}/X11/app-defaults/*
 # /usr/bin/linuxcnc_module_helper must be setuid root; others not
 %if 0%{?kversion_hardcoded:1}
 %attr(04755,-,-) %{_bindir}/linuxcnc_module_helper
-%endif # _with_xenomai_kernel
+%endif # _without_xenomai_kernel
 %attr(0755,-,-) %{_bindir}/[0-9a-km-z]*
 %attr(0755,-,-) %{_bindir}/linuxcnc
 %attr(0755,-,-) %{_bindir}/linuxcnc[a-z]*
 %attr(0755,-,-) %{_bindir}/latency*
-/linuxcnc
-%{python_sitelib}/*
+%{python_sitearch}/*
 %{_exec_prefix}/lib/tcltk/linuxcnc
 %attr(0775,-,-) %{_libdir}/*.so*
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/flavor
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/inivar
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/linuxcnc_module_helper
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/pci_read
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/pci_write
+%attr(0775,-,-) %{_libexecdir}/linuxcnc/rtapi_msgd
 %{_datadir}/axis
 %{_datadir}/glade3
 %{_datadir}/gtksourceview-2.0
 %{_datadir}/linuxcnc
+%{_datadir}/gscreen
 %lang(de) %{_datadir}/locale/de/LC_MESSAGES/linuxcnc.mo
 %lang(es) %{_datadir}/locale/es/LC_MESSAGES/linuxcnc.mo
 %lang(fi) %{_datadir}/locale/fi/LC_MESSAGES/linuxcnc.mo
@@ -245,7 +320,49 @@ find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 %defattr(-,root,root)
 %{_docdir}/%{name}-%{version}
 
+%if ! %{_without_posix}
+%files	flavor-posix
+%attr(0755,-,-) %{_libexecdir}/linuxcnc/rtapi_app_posix
+%{_libdir}/linuxcnc/posix
+%{_libdir}/linuxcnc/ulapi-posix.so
+%endif
+
+%if ! %{_without_rt_preempt}
+%files	flavor-rt-preempt
+%attr(0755,-,-) %{_libexecdir}/linuxcnc/rtapi_app_rt-preempt
+%{_libdir}/linuxcnc/rt-preempt
+%{_libdir}/linuxcnc/ulapi-rt-preempt.so
+%endif
+
+%if ! %{_without_xenomai}
+%files	flavor-xenomai
+%attr(0755,-,-) %{_libexecdir}/linuxcnc/rtapi_app_xenomai
+%{_libdir}/linuxcnc/xenomai
+%{_libdir}/linuxcnc/ulapi-xenomai.so
+%endif
+
+%if ! %{_without_xenomai_kernel}
+%files	flavor-xenomai-kernel
+/lib/modules/%{xenomai_kver}
+%{_libdir}/linuxcnc/ulapi-xenomai-kernel.so
+%endif
+
+%if ! %{_without_rtai_kernel}
+%files	flavor-rtai-kernel
+/lib/modules/%{rtai_ksrc}
+%{_libdir}/linuxcnc/ulapi-rtai-kernel.so
+%endif
+
+
 %changelog
+* Thu Sep  5 2013 John Morris <john@zultron.com> - 2.6.0-0.5.ubc3
+- Update to 2.6.0-20130905git05ed2b1
+- Refactor for Universal Build (universal-build-candidate-3)
+- Build all flavors by default, with one kernel source per kthread flavor
+- Break out flavor binaries into subpackages
+- Disable RTAI build until we have RTAI packages
+- Refactor macro system
+
 * Mon Nov 12 2012 John Morris <john@zultron.com> - 2.6.0-0.4.pre0
 - Update to 2.6.0-20121112gite024e61
 -   Fix for Xenomai recommended kernel option
